@@ -29,4 +29,4 @@ export const dbConnection = async () => {
     } catch (error) {
         console.log('Database connection failed', error);
     }
-};
+}; 
