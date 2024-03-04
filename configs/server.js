@@ -1,8 +1,10 @@
-const express = require('express');
-  
-const cors = require('cors'); 
+'use strict'
 
-const { dbConnection } = require('../db/config');
+import express from 'express'; 
+import cors from 'cors'; 
+import helmet from 'helmet'; 
+import morgan from 'morgan'; 
+import { dbConnection } from './mongo.js'; 
 
 class Server{
   constructor(){
@@ -10,7 +12,7 @@ class Server{
       this.port = process.env.PORT;
       this.conectarDB();
       this.middlewares();
-     /*this.routes();  */
+     this.routes();  
   }
 
   async conectarDB(){
@@ -32,5 +34,4 @@ class Server{
   }
 
 }
-
-module.exports = Server;
+export default  Server;
