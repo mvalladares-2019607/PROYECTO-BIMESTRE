@@ -20,6 +20,12 @@ const userSchema = Schema({
         maxLength: 8,
         required: [true, 'Se necesita teléfono']
     }, 
+    role:{
+        type: String,
+        required: true,
+        enum: ["CLIENT_ROLE", "ADMIN_ROLE"],
+        default: "CLIENT_ROLE"
+    },
 
 })
 
