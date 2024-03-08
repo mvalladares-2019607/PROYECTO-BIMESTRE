@@ -27,6 +27,10 @@ const userSchema = Schema({
         default: "CLIENT_ROLE"
     },
 
+    estado:{
+        type: Boolean,
+        default: true
+    }
 })
 
 export default model('user', userSchema)
