@@ -26,7 +26,6 @@ export const verificarRol = (rolesPermitidos) => {
         if (!user || !user.role || !rolesPermitidos.includes(user.role)) {
             return res.status(403).json({ message: 'Acceso no autorizado' });
         }
-
         next();
     };
 }

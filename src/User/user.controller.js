@@ -39,7 +39,7 @@ export const registrarCliente = async (req, res) => {
         return res.status(500).json({ message: 'Error al registrar cliente', error: error.message });
     }
 };
-export const registrarAdmin = async (req, res) => {
+/* export const registrarAdmin = async (req, res) => {
     try {
         const data = req.body;
         const nuevoUsuario = new Usuario(data);
@@ -60,7 +60,7 @@ export const registrarAdmin = async (req, res) => {
         console.error('Error al registrar administrador:', error);
         return res.status(500).json({ message: 'Error al registrar administrador', error: error.message });
     }
-};
+};*/
 export const getUsuarioByid = async (req, res) => {
     const { id } = req.params;
     const usuario = await Usuario.findOne({ _id: id });
@@ -72,10 +72,13 @@ export const getUsuarioByid = async (req, res) => {
 export const usuariosPut = async (req, res) => {
     const { id } = req.params;
     const { password, email, ...resto } = req.body;
-    if (!req.user || !req.user.role) {
+    if(!req.usuario){
+        return res.status(403).json({ message: 'NO EXISTE EL USUARIO' });
+    }
+    if (!req.usuario.role) {
         return res.status(403).json({ message: 'Acceso no autorizado' });
     }
-    if (req.user.role !== 'ADMIN_ROLE') {
+    if (req.usuario.role !== 'ADMIN_ROLE') {
         return res.status(403).json({ message: 'Acceso no autorizado para editar usuarios' });
     }
     try {
@@ -91,34 +94,25 @@ export const usuariosPut = async (req, res) => {
 };
 
 export const usuariosDelete = async (req, res) =>{
-    try {
-        const { id } = req.params;
-        const usuario = await User.findById(id);
-
-        if (!usuario) {
-            return res.status(400).json({
-                msg: 'Usuario no existe'
-            });
-        }
-        const usuarioAutenticado = req.usuario;
-        if (usuarioAutenticado.role !== 'ADMIN_ROLE') {
-            return res.status(403).json({
-                msg: 'Solo los administradores pueden eliminar perfiles'
-            });
-        }
-        usuario.estado = false;
-        await usuario.save();
-
-        res.status(200).json({
-            msg: 'Se elimino el perfil',
-            usuario
-        });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({
-            msg: 'Error al eliminar el usuario',
-        });
+    const {id } = req.params;
+    if(!req.usuario){
+        return res.status(403).json({ message: 'NO EXISTE EL USUARIO' });
     }
+    if (!req.usuario.role) {
+        return res.status(403).json({ message: 'Acceso no autorizado' });
+    }
+    if (req.usuario.role !== 'ADMIN_ROLE') {
+        return res.status(403).json({ message: 'Acceso no autorizado para eliminar usuarios' });
+    }
+    try{ 
+        const deletedUser = await User.findOneAndDelete({_id: id}); 
+        if(!deletedUser) return res.status(404).send({message: 'User not found'}); 
+        return res.send({message: `User deleted`}); 
+    }catch(error){
+        console.error(error);
+        return res.status(500).send({message: 'Failded deleted User'});
+    }
+   
 
 };
 
@@ -133,7 +127,25 @@ export const userLogin = async (req, res) => {
         if (!passwordValido) {
             return res.status(401).json({ message: 'Contraseña incorrecta' });
         }
-        const token = jwt.sign({ id: user._id }, 'secreto');
+        console.log('user'+user.email+"\npasword"+user.password);
+        const tokenGenerate =async (uid='')=>{
+            return new Promise((resolve,reject)=>{
+                const payload = {uid};
+                jwt.sign(
+                    payload,
+                    process.env.SECRETORPRIVATEKEY,
+                    {
+                        expiresIn:'3h'
+                    },
+                    (err,token)=>{
+                        err?(console.log('err'),reject('Token could not be generated')):resolve(token);
+                    }
+                )
+            })
+        }
+
+        const token = await tokenGenerate(user._id);
+
         res.json({ token });
     } catch (error) {
         console.error('Error en el inicio de sesión:', error);

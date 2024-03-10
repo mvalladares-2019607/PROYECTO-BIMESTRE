@@ -10,6 +10,7 @@ export const validarJWT = async (req, res, next) => {
   }
   try {
     const { uid } = jwt.verify(token, process.env.SECRETORPRIVATEKEY);
+    console.log(uid);
     const usuario = await Usuario.findById(uid);
     if (!usuario) {
       return res.status(401).json({
