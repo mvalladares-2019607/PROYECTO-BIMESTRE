@@ -1,98 +1,127 @@
 import Usuario from '../User/user.model.js';
-import bcryptjs from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { encrypt } from '../helpers/validatros.js';
+import  { encrypt } from '../helpers/validators.js'
+import { verificarRol } from '../helpers/validators.js'
+export const usuariosGet = async (req, res = response) => {
+    
+    const { limite, desde } = req.query;
+    const query = { estado: true };
 
-export const usuariosGet = async (req, res) => {
+    const [total, usuarios] = await Promise.all([
+        Usuario.countDocuments(query),
+        Usuario.find(query)
+            .skip(Number(desde))
+            .limit(Number(limite))
+    ]);
+    res.status(200).json({
+        total,
+        usuarios
+    });
+};
+export const registrarCliente = async (req, res) => {
     try {
-        const { limite, desde} = req.query;
-        const query = { estado: true };
-
-        const [total, usuarios] = await Promise.all([
-            Usuario.countDocuments(query),
-            Usuario.find(query)
-                .skip(Number(desde))
-                .limit(Number(limite))
-        ]);
-
-        res.status(200).json({
-            total,
-            usuarios
-        });
+        const data = req.body;
+        const nuevoUsuario = new Usuario(data);
+        const erroresValidacion = nuevoUsuario.validateSync();
+        if (erroresValidacion) {
+            const mensajesError = Object.values(erroresValidacion.errors).map(error => error.message);
+            return res.status(400).json({ message: 'Error de validación al registrar cliente', errors: mensajesError });
+        }
+        const existingUser = await Usuario.findOne({ email: data.email });
+        if (existingUser) {
+            return res.status(400).json({ message: 'El correo electrónico ya está registrado' });
+        }
+        const user = new Usuario(data);
+        await user.save();
+        return res.status(201).json({ message: `Registro exitoso, puede iniciar sesión con el correo ${user.email}` });
     } catch (error) {
-        res.status(500).json({ message: 'Error al obtener los usuarios' });
+        console.error('Error al registrar cliente:', error);
+        return res.status(500).json({ message: 'Error al registrar cliente', error: error.message });
     }
 };
-export const usuariosPost = async (req, res) => {
+export const registrarAdmin = async (req, res) => {
     try {
-        const { name, email, telefono, password, role } = req.body;
-        const usuario = new Usuario({ name, email, telefono, password, role });
-        const salt = bcryptjs.genSaltSync();
-        usuario.password = bcryptjs.hashSync(password, salt);
-        await usuario.save();
-        res.status(201).json({ message: 'Usuario creado exitosamente', usuario });
-    } catch (error) {
-        res.status(500).json({ message: 'Error al crear el usuario' });
-    }
-};
-export const usuariosPut = async (req, res) => {
-    try {
-        const { name, email, telefono, password, role } = req.body;
-        const usuarioId = req.params.id;
-        const usuario = await Usuario.findById(usuarioId);
-        if (!usuario) {
-            return res.status(404).json({ message: 'Usuario no encontrado' });
+        const data = req.body;
+        const nuevoUsuario = new Usuario(data);
+        const erroresValidacion = nuevoUsuario.validateSync();
+        if (erroresValidacion) {
+            const mensajesError = Object.values(erroresValidacion.errors).map(error => error.message);
+            return res.status(400).json({ message: 'Error de validación al registrar administrador', errors: mensajesError });
         }
-        usuario.name = name;
-        usuario.email = email;
-        usuario.telefono = telefono;
-        usuario.role = role;
-
-        if (password) {
-            const salt = bcryptjs.genSaltSync();
-            usuario.password = bcryptjs.hashSync(password, salt);
+        const existingUser = await Usuario.findOne({ email: data.email });
+        if (existingUser) {
+            return res.status(400).json({ message: 'El correo electrónico ya está registrado' });
         }
-        await usuario.save();
-        res.status(200).json({ message: 'Usuario actualizado correctamente', usuario });
+        data.role = 'ADMIN_ROLE';
+        const user = new Usuario(data);
+        await user.save();
+        return res.status(201).json({ message: `Administrador registrado exitosamente, puede iniciar sesión con el correo ${user.email}` });
     } catch (error) {
-        res.status(500).json({ message: 'Error al actualizar el usuario' });
+        console.error('Error al registrar administrador:', error);
+        return res.status(500).json({ message: 'Error al registrar administrador', error: error.message });
     }
 };
 export const getUsuarioByid = async (req, res) => {
+    const { id } = req.params;
+    const usuario = await Usuario.findOne({ _id: id });
+
+    res.status(200).json({
+        usuario
+    });
+};
+export const usuariosPut = async (req, res) => {
+    const { id } = req.params;
+    const { password, email, ...resto } = req.body;
+    if (!req.user || !req.user.role) {
+        return res.status(403).json({ message: 'Acceso no autorizado' });
+    }
+    if (req.user.role !== 'ADMIN_ROLE') {
+        return res.status(403).json({ message: 'Acceso no autorizado para editar usuarios' });
+    }
     try {
-        const { id } = req.params;
-        const usuario = await Usuario.findOne({ _id: id });
+        const usuario = await Usuario.findByIdAndUpdate(id, resto);
         if (!usuario) {
             return res.status(404).json({ message: 'Usuario no encontrado' });
         }
-        res.status(200).json({ usuario });
+        res.status(200).json({ message: 'Usuario actualizado correctamente' });
     } catch (error) {
-        res.status(500).json({ message: 'Error al obtener el usuario' });
+        console.error("Error al actualizar usuario:", error);
+        res.status(500).json({ message: 'Error interno del servidor' });
     }
 };
-export const usuariosDelete = async (req, res) => {
+
+export const usuariosDelete = async (req, res) =>{
     try {
         const { id } = req.params;
-        const usuario = await Usuario.findByIdAndDelete(id);
+        const usuario = await User.findById(id);
+
         if (!usuario) {
-            return res.status(404).json({ message: 'Usuario no encontrado' });
+            return res.status(400).json({
+                msg: 'Usuario no existe'
+            });
         }
-        res.status(200).json({ message: 'Usuario eliminado exitosamente' });
-    } catch (error) {
-        res.status(500).json({ message: 'Error al eliminar el usuario' });
-    }
-};
-export const register = async (req, res) => {
-    try {
-        const { name, email, telefono, password, role } = req.body;
-        const hashedPassword = await encrypt(password);
-        const usuario = new Usuario({ name, email, telefono, password: hashedPassword, role });
+        const usuarioAutenticado = req.usuario;
+        if (usuarioAutenticado.role !== 'ADMIN_ROLE') {
+            return res.status(403).json({
+                msg: 'Solo los administradores pueden eliminar perfiles'
+            });
+        }
+        usuario.estado = false;
         await usuario.save();
-        res.status(201).json({ message: 'Usuario registrado exitosamente' });
+
+        res.status(200).json({
+            msg: 'Se elimino el perfil',
+            usuario
+        });
     } catch (error) {
-        res.status(500).json({ message: 'Error al registrar el usuario' });
+        console.error(error);
+        res.status(500).json({
+            msg: 'Error al eliminar el usuario',
+        });
     }
+
 };
+
 export const userLogin = async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -100,13 +129,14 @@ export const userLogin = async (req, res) => {
         if (!user) {
             return res.status(404).json({ message: 'Usuario no encontrado' });
         }
-        const passwordValido = await bcryptjs.compare(password, user.password);
+        const passwordValido = await encrypt(password, user.password);
         if (!passwordValido) {
             return res.status(401).json({ message: 'Contraseña incorrecta' });
         }
         const token = jwt.sign({ id: user._id }, 'secreto');
         res.json({ token });
     } catch (error) {
-        res.status(500).json({ message: 'Error al iniciar sesión' });
+        console.error('Error en el inicio de sesión:', error);
+        res.status(500).json({ message: 'Error en el inicio de sesión', error: error.message });
     }
 };

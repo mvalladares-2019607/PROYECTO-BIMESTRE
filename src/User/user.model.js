@@ -22,7 +22,6 @@ const userSchema = Schema({
     }, 
     role:{
         type: String,
-        required: true,
         enum: ["CLIENT_ROLE", "ADMIN_ROLE"],
         default: "CLIENT_ROLE"
     },
@@ -31,6 +30,6 @@ const userSchema = Schema({
         type: Boolean,
         default: true
     }
-})
+});
 
 export default model('user', userSchema)
